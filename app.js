@@ -166,6 +166,9 @@ const routes = [
   [/^\/ipa$/, ipaView, 'ipa'],
   [/^\/grammar$/, grammarListView, 'grammar'],
   [/^\/grammar\/(\w+)$/, grammarLessonView, 'grammar'],
+  [/^\/wordform$/, wordformHub, 'grammar'],
+  [/^\/wordform\/learn$/, wordformLearn, 'grammar'],
+  [/^\/wordform\/(classify|fill|type)$/, wordformQuiz, 'grammar', true],
   [/^\/settings$/, settingsView, 'home'],
 ];
 
@@ -816,6 +819,13 @@ function grammarListView() {
   view.innerHTML = `
     <h1>Ngữ pháp nền tảng</h1>
     <p class="sub">Chỉ học phần cốt lõi. Mỗi bài có lý thuyết ngắn và 5 câu luyện tập.</p>
+    <a class="card list-item" href="#/wordform" style="border-color:var(--accent)">
+      <div class="emoji">🔤</div>
+      <div class="grow"><div class="name">Loại từ (TOEIC Part 5)</div>
+        <div class="muted small">Phân loại từ, chọn dạng đúng, gõ dạng đúng</div></div>
+      <span class="badge">Mới</span>
+    </a>
+    <h2>Bài ngữ pháp</h2>
     ${GRAMMAR.map((g, i) => `
       <a class="card list-item" href="#/grammar/${g.id}">
         <div class="emoji">${gp[g.id] != null ? '✅' : i + 1}</div>
@@ -868,6 +878,218 @@ function grammarLessonView(id) {
       }
     });
   });
+}
+
+/* ---------- Loại từ (word form) ---------- */
+const POS = ['n', 'v', 'adj', 'adv'];
+const POS_NAME = { n: 'Danh từ', v: 'Động từ', adj: 'Tính từ', adv: 'Trạng từ' };
+// Đuôi từ thường gặp, xét đuôi dài trước
+const SUFFIXES = [
+  ['tion', 'n'], ['sion', 'n'], ['ment', 'n'], ['ness', 'n'], ['ity', 'n'], ['ance', 'n'], ['ence', 'n'],
+  ['ship', 'n'], ['sis', 'n'], ['cy', 'n'], ['ty', 'n'], ['th', 'n'],
+  ['ize', 'v'], ['ise', 'v'], ['ify', 'v'], ['ate', 'v'], ['en', 'v'],
+  ['ful', 'adj'], ['less', 'adj'], ['ive', 'adj'], ['able', 'adj'], ['ible', 'adj'], ['ous', 'adj'],
+  ['ory', 'adj'], ['ic', 'adj'], ['al', 'adj'], ['ent', 'adj'], ['ant', 'adj'],
+  ['ly', 'adv'],
+].sort((a, b) => b[0].length - a[0].length);
+// Từ có thể mang nhiều loại (clear cũng là động từ…) thì không đưa vào bài phân loại
+const WF_AMBIGUOUS = new Set(['clear', 'professional', 'produce']);
+const suffixOf = w => SUFFIXES.find(([s]) => w.endsWith(s) && w.length > s.length + 2);
+const famForms = f => POS.filter(p => f[p]).map(p => ({ pos: p, word: f[p] }));
+
+function familyTable(f) {
+  return `<div class="fam">${POS.map(p => `<div class="fam-cell ${f[p] ? '' : 'empty'}">
+    <span class="tag tag-${p}">${POS_NAME[p]}</span>
+    ${f[p] ? `<button class="fam-word" data-say="${esc(f[p])}">${esc(f[p])}</button>` : '<span class="muted">—</span>'}</div>`).join('')}</div>`;
+}
+
+function wordformHub() {
+  const best = store.get('wfbest', {});
+  const sentences = WORD_FAMILIES.reduce((a, f) => a + f.s.length, 0);
+  const card = (href, icon, name, desc, key) => `
+    <a class="card list-item" href="${href}">
+      <div class="emoji">${icon}</div>
+      <div class="grow"><div class="name">${name}</div><div class="muted small">${desc}</div></div>
+      ${key && best[key] != null ? `<span class="badge">Cao nhất ${best[key]}/10</span>` : ''}
+    </a>`;
+  view.innerHTML = `
+    ${topbar('🔤 Loại từ', '#/grammar')}
+    <p class="sub">Dạng bài chiếm nhiều câu nhất ở TOEIC Part 5. Nắm được đuôi từ và vị trí trong câu là làm được phần lớn.</p>
+    ${card('#/wordform/learn', '📖', 'Lý thuyết và bảng họ từ', `Đuôi từ, vị trí trong câu, ${WORD_FAMILIES.length} họ từ TOEIC`)}
+    ${card('#/wordform/classify', '🏷️', 'Phân loại từ', 'Từ này là danh, động, tính hay trạng từ?', 'classify')}
+    ${card('#/wordform/fill', '✍️', 'Chọn dạng đúng', `Kiểu TOEIC Part 5 · ${sentences} câu`, 'fill')}
+    ${card('#/wordform/type', '⌨️', 'Gõ dạng đúng', 'Cho từ gốc, tự viết dạng phù hợp', 'type')}`;
+}
+
+function wordformLearn() {
+  const sfx = p => SUFFIXES.filter(s => s[1] === p).map(s => '-' + s[0]).join(', ');
+  view.innerHTML = `
+    ${topbar('📖 Lý thuyết loại từ', '#/wordform')}
+    <div class="card lesson-body">
+      <h2 style="margin-top:0">1. Nhận biết qua đuôi từ</h2>
+      <table class="gtable">
+        <tr><th><span class="tag tag-n">Danh từ</span></th><td>${sfx('n')}, -er/-or/-ee (chỉ người)</td></tr>
+        <tr><th><span class="tag tag-v">Động từ</span></th><td>${sfx('v')}</td></tr>
+        <tr><th><span class="tag tag-adj">Tính từ</span></th><td>${sfx('adj')}</td></tr>
+        <tr><th><span class="tag tag-adv">Trạng từ</span></th><td>-ly (thường là tính từ + ly)</td></tr>
+      </table>
+      <div class="tip">⚠️ <b>Ngoại lệ hay gặp:</b> friendly, lovely, costly là <b>tính từ</b> dù có đuôi -ly. Accurate, appropriate là <b>tính từ</b> dù có đuôi -ate. Professional, individual vừa là tính từ vừa là danh từ.</div>
+
+      <h2>2. Nhận biết qua vị trí trong câu</h2>
+      <table class="gtable">
+        <tr><th><span class="tag tag-n">Danh từ</span></th><td>Sau <b>a/an/the</b>, sau sở hữu (<b>my, our, its…</b>), sau tính từ, sau giới từ (<b>of, for, with…</b>), làm chủ ngữ đầu câu.<br><i>the <b>decision</b>, our <b>efficiency</b>, for more <b>information</b></i></td></tr>
+        <tr><th><span class="tag tag-v">Động từ</span></th><td>Sau chủ ngữ, sau <b>to</b>, sau <b>will/can/must/should</b>, đầu câu mệnh lệnh (sau <b>Please</b>).<br><i>We need to <b>decide</b>. Please <b>inform</b> us.</i></td></tr>
+        <tr><th><span class="tag tag-adj">Tính từ</span></th><td>Trước danh từ; sau <b>be, become, seem, look, remain</b>; sau <b>very, so, too, more</b>.<br><i>a <b>reliable</b> supplier, The report is <b>accurate</b>.</i></td></tr>
+        <tr><th><span class="tag tag-adv">Trạng từ</span></th><td>Bổ nghĩa cho động từ, tính từ hoặc cả câu: giữa <b>be</b> và V3 (<b>is widely used</b>), giữa trợ động từ và động từ, sau động từ thường, trước tính từ.<br><i>The team <b>successfully</b> completed… / <b>economically</b> strong</i></td></tr>
+      </table>
+
+      <h2>3. Mẹo làm TOEIC Part 5</h2>
+      <ul>
+        <li>Thấy 4 đáp án là 4 dạng của <b>cùng một từ</b> (decide, decision, decisive, decisively) thì <b>không cần dịch</b> cả câu, chỉ nhìn từ đứng trước và sau chỗ trống.</li>
+        <li>Câu đã đủ chủ ngữ, động từ, tân ngữ mà chỗ trống vẫn còn thì thường cần <b>trạng từ</b>.</li>
+        <li>Mạo từ + ___ + giới từ (<b>the ___ of</b>) thì gần như chắc chắn là <b>danh từ</b>.</li>
+      </ul>
+    </div>
+
+    <h2>Bảng ${WORD_FAMILIES.length} họ từ TOEIC</h2>
+    <p class="muted small">Chạm vào từ để nghe phát âm.</p>
+    ${WORD_FAMILIES.map(f => `<div class="card"><div class="small muted" style="margin-bottom:6px">${esc(f.vi)}</div>${familyTable(f)}</div>`).join('')}`;
+  bindSay(view);
+}
+
+function wordformQuiz(mode) {
+  const back = '#/wordform';
+  const fillSentence = (s, word) => esc(s).replace('___', `<b class="ans">${esc(s.startsWith('___') ? word[0].toUpperCase() + word.slice(1) : word)}</b>`);
+  const blankSentence = s => esc(s).replace('___', '<span class="blank">______</span>');
+  const plain = (s, word) => s.replace('___', word);
+  const allSentences = WORD_FAMILIES.flatMap(f => f.s.map(s => ({ f, s })));
+  let qs;
+
+  if (mode === 'classify') {
+    const words = WORD_FAMILIES.flatMap(f => famForms(f).map(x => ({ ...x, f }))).filter(x => !WF_AMBIGUOUS.has(x.word));
+    qs = shuffle(words).slice(0, 10).map(x => {
+      const sf = suffixOf(x.word);
+      let why;
+      if (sf && sf[1] === x.pos) why = `Đuôi <b>-${sf[0]}</b> → thường là <b>${POS_NAME[x.pos].toLowerCase()}</b>.`;
+      else if (sf) why = `⚠️ Ngoại lệ: có đuôi <b>-${sf[0]}</b> (thường là ${POS_NAME[sf[1]].toLowerCase()}) nhưng <b>${esc(x.word)}</b> là <b>${POS_NAME[x.pos].toLowerCase()}</b>.`;
+      else why = `<b>${esc(x.word)}</b> là <b>${POS_NAME[x.pos].toLowerCase()}</b>, không có đuôi đặc trưng nên cần ghi nhớ.`;
+      return {
+        prompt: () => `<div class="phrase">${esc(x.word)}</div><button class="icon-btn" data-say="${esc(x.word)}">🔊</button>
+          <div class="muted small" style="margin-top:6px">Họ từ: ${esc(x.f.vi)}</div>`,
+        opts: POS.map(p => ({ text: POS_NAME[p], ok: p === x.pos })),
+        explain: `${why}${familyTable(x.f)}`,
+        say: x.word,
+      };
+    });
+  } else {
+    qs = shuffle(allSentences).slice(0, 10).map(({ f, s }) => {
+      const ans = f[s[1]];
+      const root = f.v || f.adj || f.n;
+      return {
+        f, s, ans, root,
+        prompt: done => `<div class="sentence">${done ? fillSentence(s[0], ans) : blankSentence(s[0])}</div>
+          ${mode === 'type' ? `<div class="muted" style="margin-top:8px">Từ gốc: <b>(${esc(root)})</b> · ${esc(f.vi)}</div>` : ''}`,
+        opts: shuffle(famForms(f)).map(x => ({ text: x.word, ok: x.word === ans, pos: x.pos })),
+        explain: `💡 <b>Vị trí:</b> ${esc(s[2])} → <b>${esc(ans)}</b>${familyTable(f)}`,
+        say: plain(s[0], ans),
+      };
+    });
+  }
+
+  let i = 0, score = 0, picked = null, tries = 0, revealed = false;
+  const title = { classify: '🏷️ Phân loại từ', fill: '✍️ Chọn dạng đúng', type: '⌨️ Gõ dạng đúng' }[mode];
+
+  function header() {
+    return `${topbar(title, back)}
+      <div class="spread small muted"><span>Câu ${i + 1}/${qs.length}</span><span>Đúng ${score}</span></div>
+      <div class="progress" style="margin:8px 0 16px"><div style="width:${(i / qs.length) * 100}%"></div></div>`;
+  }
+
+  function render() {
+    if (i >= qs.length) { finish(); return; }
+    const q = qs[i];
+    const done = picked !== null;
+    if (mode === 'type') { renderType(q, done); return; }
+    view.innerHTML = `${header()}
+      <div class="card center">${q.prompt(done)}</div>
+      <div class="opt-grid">
+        ${q.opts.map((o, k) => {
+          let cls = 'opt';
+          if (done && o.ok) cls += ' right';
+          else if (picked === k) cls += ' wrong';
+          const tag = done && o.pos ? ` <span class="tag tag-${o.pos}">${POS_NAME[o.pos]}</span>` : '';
+          return `<button class="${cls}" data-k="${k}" ${done ? 'disabled' : ''}><span class="muted small">${k + 1}</span> ${esc(o.text)}${tag}</button>`;
+        }).join('')}
+      </div>
+      ${done ? `<div class="card small">${q.explain}</div><button class="btn primary block" id="next">Tiếp tục →</button>` : ''}`;
+    $$('.opt-grid .opt').forEach(b => b.onclick = () => choose(+b.dataset.k));
+    bindSay(view);
+    $('#next')?.addEventListener('click', next);
+  }
+
+  function renderType(q, done) {
+    view.innerHTML = `${header()}
+      <div class="card center">${q.prompt(done)}</div>
+      ${done ? '' : `
+        <input id="wfIn" class="text-in" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="done" placeholder="Gõ dạng đúng…">
+        <div class="feedback bad" id="fb"></div>
+        <div class="controls">
+          <button class="btn small" id="bShow">💡 Xem đáp án</button>
+          <button class="btn small primary" id="bCheck">Kiểm tra</button>
+        </div>`}
+      ${done ? `<div class="feedback ${revealed ? 'bad' : 'good'}">${revealed ? 'Đáp án: ' + esc(q.ans) : 'Chính xác! 🎉'}</div>
+        <div class="card small">${q.explain}</div><button class="btn primary block" id="next">Tiếp tục →</button>` : ''}`;
+    bindSay(view);
+    if (done) { $('#next').onclick = next; return; }
+    const inp = $('#wfIn');
+    inp.focus();
+    inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); check(); } });
+    $('#bCheck').onclick = check;
+    $('#bShow').onclick = () => { revealed = true; picked = -1; logActivity('wordform'); speak(q.say); render(); };
+    function check() {
+      const v = inp.value.trim().toLowerCase();
+      if (!v) return;
+      if (v === q.ans) { if (!tries) score++; picked = 0; logActivity('wordform'); speak(q.say); render(); return; }
+      tries++;
+      const fam = famForms(q.f).find(x => x.word === v);
+      $('#fb').textContent = fam
+        ? `"${v}" là ${POS_NAME[fam.pos].toLowerCase()}, chưa đúng vị trí. Thử lại!`
+        : tries >= 2 ? `Gợi ý: bắt đầu bằng "${q.ans.slice(0, 3)}…"` : 'Chưa đúng, thử lại nhé!';
+      inp.classList.remove('shake'); void inp.offsetWidth; inp.classList.add('shake');
+    }
+  }
+
+  function choose(k) {
+    if (picked !== null) return;
+    picked = k;
+    if (qs[i].opts[k].ok) score++;
+    logActivity('wordform');
+    speak(qs[i].say);
+    render();
+  }
+  function next() { i++; picked = null; tries = 0; revealed = false; render(); }
+
+  function finish() {
+    keyHandler = null;
+    const best = store.get('wfbest', {});
+    best[mode] = Math.max(score, best[mode] || 0);
+    store.set('wfbest', best);
+    view.innerHTML = `${topbar(title, back)}
+      <div class="big-emoji">${score >= 8 ? '🏆' : '💪'}</div>
+      <h1 class="center">${score}/${qs.length} câu đúng</h1>
+      <p class="sub center">${score >= 8 ? 'Rất tốt! Thử dạng bài khác nhé.' : 'Xem lại phần lý thuyết về vị trí trong câu rồi làm lượt mới.'}</p>
+      <div class="row" style="justify-content:center">
+        <a class="btn" href="#/wordform/learn">Xem lý thuyết</a>
+        <button class="btn primary" onclick="router()">Làm lượt mới</button>
+      </div>`;
+  }
+
+  keyHandler = e => {
+    if (i >= qs.length || e.target.tagName === 'INPUT') return;
+    if (picked === null && mode !== 'type' && ['1', '2', '3', '4'].includes(e.key)) choose(+e.key - 1);
+    else if (picked !== null && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); next(); }
+  };
+  render();
 }
 
 /* ---------- Cài đặt ---------- */
