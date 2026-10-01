@@ -294,6 +294,14 @@ kbd {
 .text-in:focus { outline: none; border-color: var(--accent); }
 .opt .tag { margin-left: 4px; vertical-align: middle; }
 
+/* Tra từ */
+[lang="en"], [data-tt] { cursor: pointer; }
+.lookup { z-index: 25; max-height: 70vh; overflow-y: auto; }
+.lk-word { font-size: 1.5rem; font-weight: 700; margin-right: 6px; }
+.lk-vi { font-size: 1.2rem; font-weight: 600; color: var(--accent); margin: 4px 0; }
+.tag-x { background: var(--line); color: var(--text); }
+::highlight(lookup) { background-color: rgba(15, 157, 116, .28); }
+
 /* Cài đặt */
 .field { margin-bottom: 18px; }
 .field label { display: block; font-weight: 600; margin-bottom: 6px; }

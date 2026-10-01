@@ -7,6 +7,7 @@ Web app học tiếng Anh (PWA), cài được lên điện thoại và dùng of
 - **Từ vựng**: 300 từ TOEIC trong 12 chủ đề (kèm từ đồng nghĩa và cụm từ hay dùng) và 120 từ cơ bản, ôn bằng flashcard lặp lại ngắt quãng.
 - **Luyện cụm từ**: điền từ còn thiếu, ví dụ `___ a deadline` → meet. Câu hỏi được tạo tự động từ các cụm từ trong dữ liệu. Làm sai một từ đã học thì từ đó được đưa vào lượt ôn ngay.
 - **Loại từ (TOEIC Part 5)** (trong tab Ngữ pháp): lý thuyết đuôi từ và vị trí trong câu, 40 họ từ TOEIC, 3 dạng bài: phân loại từ, chọn dạng đúng (135 câu), gõ dạng đúng. Dữ liệu ở `wordforms.js`.
+- **Chạm để tra nghĩa**: chạm vào từ tiếng Anh bất kỳ trong câu, ví dụ, bài tập để xem nghĩa, phiên âm, loại từ, họ từ, và thêm vào ôn tập. Tra offline bằng từ vựng của app cộng với `dict.js`, tự quy dạng biến đổi về từ gốc (went → go). Từ chưa có thì dịch online qua MyMemory và lưu lại.
 - **Phát âm**: bảng 44 âm IPA kèm mẹo đọc cho người Việt.
 - **Ngữ pháp**: 9 bài nền tảng, mỗi bài có 5 câu luyện tập.
 

@@ -175,6 +175,7 @@ const routes = [
 function router() {
   const path = location.hash.replace(/^#/, '') || '/';
   keyHandler = null;
+  closeLookup();
   if ('speechSynthesis' in window) speechSynthesis.cancel();
   for (const [re, fn, tab, full] of routes) {
     const m = path.match(re);
@@ -427,7 +428,7 @@ function sentencePlayer(id) {
   }
 
   function showAnswer() {
-    $('#hint').innerHTML = `Đáp án: <b>${esc(answer())}</b>`;
+    $('#hint').innerHTML = `Đáp án: <b lang="en">${esc(answer())}</b>`;
     speak(answer());
     if (settings.sentenceMode === 'type') $('#typer').focus();
   }
@@ -444,7 +445,8 @@ function sentencePlayer(id) {
     speak(answer());
     $('#after').innerHTML = `
       <div class="answer-box">
-        <div class="en">${esc(answer())}</div>
+        <div class="en" lang="en">${esc(answer())}</div>
+        <div class="muted small">Chạm vào từ để xem nghĩa</div>
         <div class="muted">${esc(item()[0])}</div>
         <div class="row" style="justify-content:center;margin-top:10px">
           <button class="btn small" id="aSpeak">🔊 Nghe lại</button>
@@ -494,7 +496,7 @@ function sentencePlayer(id) {
 
   frame();
   $('#stage').addEventListener('click', e => {
-    if (settings.sentenceMode === 'type' && !e.target.closest('button')) $('#typer')?.focus();
+    if (settings.sentenceMode === 'type' && !e.target.closest('button, [lang="en"]')) $('#typer')?.focus();
   });
 }
 
@@ -547,10 +549,10 @@ function topicView(id) {
         const lv = !c ? '' : c.interval >= 7 ? 'l2' : 'l1';
         return `<div class="word-row">
           <span class="lv ${lv}" title="${!c ? 'Chưa học' : lv === 'l2' ? 'Đã nhớ' : 'Đang học'}"></span>
-          <div class="grow"><span class="en">${esc(w[0])}</span> <span class="muted small">${esc(w[1])} · ${w[2]}</span>
+          <div class="grow"><span class="en" lang="en">${esc(w[0])}</span> <span class="muted small">${esc(w[1])} · ${w[2]}</span>
             <div class="small">${esc(w[3])}</div>
-            ${w[5] ? `<div class="small muted">≈ ${esc(w[5])}</div>` : ''}
-            ${w[6] ? `<div class="small muted">🔗 ${w[6].map(c => esc(c[0])).join(' · ')}</div>` : ''}</div>
+            ${w[5] ? `<div class="small muted" lang="en">≈ ${esc(w[5])}</div>` : ''}
+            ${w[6] ? `<div class="small muted" lang="en">🔗 ${w[6].map(c => esc(c[0])).join(' · ')}</div>` : ''}</div>
           <button class="icon-btn" data-say="${esc(w[0])}" aria-label="Nghe">🔊</button>
         </div>`;
       }).join('')}
@@ -564,7 +566,7 @@ function wordExtras(w) {
   let html = '';
   if (w.syn) {
     html += `<div class="extra"><div class="label">≈ Đồng nghĩa</div><div class="chips">
-      ${w.syn.split(', ').map(s => `<button class="chip" data-say="${esc(s)}">${esc(s)}</button>`).join('')}</div></div>`;
+      ${w.syn.split(', ').map(s => `<button class="chip" data-lookup="${esc(s)}">${esc(s)}</button>`).join('')}</div></div>`;
   }
   if (w.col.length) {
     html += `<div class="extra"><div class="label">🔗 Cụm từ hay dùng</div>
@@ -634,7 +636,7 @@ function collocView(topic) {
       <div class="spread small muted"><span>Câu ${i + 1}/${qs.length}</span><span>Đúng ${score}</span></div>
       <div class="progress" style="margin:8px 0 16px"><div style="width:${(i / qs.length) * 100}%"></div></div>
       <div class="card center">
-        <div class="phrase">${phraseHtml}</div>
+        <div class="phrase" lang="en">${phraseHtml}</div>
         <div class="muted">${esc(q.vi)}</div>
         <div class="small muted" style="margin-top:10px">Từ khóa: <b>${esc(q.word.en)}</b> · ${esc(q.word.vi)}</div>
       </div>
@@ -649,10 +651,10 @@ function collocView(topic) {
       ${picked !== null ? `
         <div class="card small">
           <div class="row" style="justify-content:space-between;flex-wrap:nowrap">
-            <span>“${esc(q.word.ex)}”</span>
+            <span lang="en">“${esc(q.word.ex)}”</span>
             <button class="icon-btn" data-say="${esc(q.word.ex)}" aria-label="Nghe câu ví dụ">🔊</button>
           </div>
-          ${q.word.syn ? `<div class="muted" style="margin-top:6px">≈ ${esc(q.word.syn)}</div>` : ''}
+          ${q.word.syn ? `<div class="muted" style="margin-top:6px" lang="en">≈ ${esc(q.word.syn)}</div>` : ''}
         </div>
         <button class="btn primary block" id="next">Tiếp tục →</button>` : ''}`;
     $$('.opt-grid .opt').forEach(b => b.onclick = () => choose(+b.dataset.k));
@@ -732,12 +734,12 @@ function reviewView(topic) {
       <div class="progress" style="margin:8px 0 16px"><div style="width:${total ? Math.min(100, (done / total) * 100) : 0}%"></div></div>
       <div class="card flash" id="flash">
         ${newSet.has(en) && !card ? '<span class="badge corner">Mới</span>' : ''}
-        <div class="word">${esc(w.en)}</div>
+        <div class="word"${flipped ? ' lang="en"' : ''}>${esc(w.en)}</div>
         <div class="ipa">${esc(w.ipa)} · ${w.pos}</div>
         <button class="icon-btn" id="say" aria-label="Nghe">🔊</button>
         ${flipped ? `
           <div class="meaning">${esc(w.vi)}</div>
-          <div class="ex"><span>“${esc(w.ex)}”</span><button class="icon-btn" id="sayEx" aria-label="Nghe câu ví dụ">🔊</button></div>
+          <div class="ex"><span lang="en">“${esc(w.ex)}”</span><button class="icon-btn" id="sayEx" aria-label="Nghe câu ví dụ">🔊</button></div>
           ${wordExtras(w)}
         ` : `<div class="tap-hint">Chạm để xem nghĩa (phím Space)</div>`}
       </div>
@@ -804,10 +806,9 @@ function ipaView() {
       <div class="spread"><div class="sym">/${esc(x[0])}/</div>
         <button class="icon-btn" id="close" aria-label="Đóng">✕</button></div>
       <p>${esc(x[3])}</p>
-      <div class="ex-words">${x[2].map(w => `<button class="btn small" data-w="${esc(w)}">🔊 ${esc(w)}</button>`).join('')}</div>
+      <div class="ex-words">${x[2].map(w => `<button class="btn small" data-lookup="${esc(w)}">🔊 ${esc(w)}</button>`).join('')}</div>
       <p class="muted small">Mẹo: nghe từ ví dụ, đọc theo 3 lần, rồi tự ghi âm giọng mình để so sánh.</p>`;
     sheet.classList.add('open');
-    $$('[data-w]', sheet).forEach(w => w.onclick = () => speak(w.dataset.w, 0.75));
     $('#close').onclick = () => { sheet.classList.remove('open'); $$('.ipa-tile').forEach(t => t.classList.remove('sel')); };
     speak(x[2][0], 0.75);
   });
@@ -840,14 +841,14 @@ function grammarLessonView(id) {
   const answers = [];
   view.innerHTML = `
     ${topbar(esc(g.title), '#/grammar')}
-    <div class="card lesson-body">${g.html}</div>
+    <div class="card lesson-body" data-tt>${g.html}</div>
     <h2>Luyện tập</h2>
     <div class="card">
       ${g.quiz.map((q, qi) => `
         <div class="q" data-q="${qi}">
-          <div class="qt">${qi + 1}. ${esc(q[0])}</div>
+          <div class="qt" data-tt>${qi + 1}. ${esc(q[0])}</div>
           <div class="opts">${q[1].map((o, oi) => `<button class="opt" data-o="${oi}">${esc(o)}</button>`).join('')}</div>
-          <div class="explain" hidden></div>
+          <div class="explain" data-tt hidden></div>
         </div>`).join('')}
       <div id="score" class="center" style="font-weight:600"></div>
     </div>`;
@@ -900,7 +901,7 @@ const famForms = f => POS.filter(p => f[p]).map(p => ({ pos: p, word: f[p] }));
 function familyTable(f) {
   return `<div class="fam">${POS.map(p => `<div class="fam-cell ${f[p] ? '' : 'empty'}">
     <span class="tag tag-${p}">${POS_NAME[p]}</span>
-    ${f[p] ? `<button class="fam-word" data-say="${esc(f[p])}">${esc(f[p])}</button>` : '<span class="muted">—</span>'}</div>`).join('')}</div>`;
+    ${f[p] ? `<button class="fam-word" data-lookup="${esc(f[p])}">${esc(f[p])}</button>` : '<span class="muted">—</span>'}</div>`).join('')}</div>`;
 }
 
 function wordformHub() {
@@ -925,7 +926,7 @@ function wordformLearn() {
   const sfx = p => SUFFIXES.filter(s => s[1] === p).map(s => '-' + s[0]).join(', ');
   view.innerHTML = `
     ${topbar('📖 Lý thuyết loại từ', '#/wordform')}
-    <div class="card lesson-body">
+    <div class="card lesson-body" data-tt>
       <h2 style="margin-top:0">1. Nhận biết qua đuôi từ</h2>
       <table class="gtable">
         <tr><th><span class="tag tag-n">Danh từ</span></th><td>${sfx('n')}, -er/-or/-ee (chỉ người)</td></tr>
@@ -974,7 +975,7 @@ function wordformQuiz(mode) {
       else if (sf) why = `⚠️ Ngoại lệ: có đuôi <b>-${sf[0]}</b> (thường là ${POS_NAME[sf[1]].toLowerCase()}) nhưng <b>${esc(x.word)}</b> là <b>${POS_NAME[x.pos].toLowerCase()}</b>.`;
       else why = `<b>${esc(x.word)}</b> là <b>${POS_NAME[x.pos].toLowerCase()}</b>, không có đuôi đặc trưng nên cần ghi nhớ.`;
       return {
-        prompt: () => `<div class="phrase">${esc(x.word)}</div><button class="icon-btn" data-say="${esc(x.word)}">🔊</button>
+        prompt: () => `<div class="phrase" lang="en">${esc(x.word)}</div><button class="icon-btn" data-say="${esc(x.word)}">🔊</button>
           <div class="muted small" style="margin-top:6px">Họ từ: ${esc(x.f.vi)}</div>`,
         opts: POS.map(p => ({ text: POS_NAME[p], ok: p === x.pos })),
         explain: `${why}${familyTable(x.f)}`,
@@ -987,7 +988,7 @@ function wordformQuiz(mode) {
       const root = f.v || f.adj || f.n;
       return {
         f, s, ans, root,
-        prompt: done => `<div class="sentence">${done ? fillSentence(s[0], ans) : blankSentence(s[0])}</div>
+        prompt: done => `<div class="sentence" lang="en">${done ? fillSentence(s[0], ans) : blankSentence(s[0])}</div>
           ${mode === 'type' ? `<div class="muted" style="margin-top:8px">Từ gốc: <b>(${esc(root)})</b> · ${esc(f.vi)}</div>` : ''}`,
         opts: shuffle(famForms(f)).map(x => ({ text: x.word, ok: x.word === ans, pos: x.pos })),
         explain: `💡 <b>Vị trí:</b> ${esc(s[2])} → <b>${esc(ans)}</b>${familyTable(f)}`,
@@ -1021,7 +1022,7 @@ function wordformQuiz(mode) {
           return `<button class="${cls}" data-k="${k}" ${done ? 'disabled' : ''}><span class="muted small">${k + 1}</span> ${esc(o.text)}${tag}</button>`;
         }).join('')}
       </div>
-      ${done ? `<div class="card small">${q.explain}</div><button class="btn primary block" id="next">Tiếp tục →</button>` : ''}`;
+      ${done ? `<div class="card small" data-tt>${q.explain}</div><button class="btn primary block" id="next">Tiếp tục →</button>` : ''}`;
     $$('.opt-grid .opt').forEach(b => b.onclick = () => choose(+b.dataset.k));
     bindSay(view);
     $('#next')?.addEventListener('click', next);
@@ -1038,7 +1039,7 @@ function wordformQuiz(mode) {
           <button class="btn small primary" id="bCheck">Kiểm tra</button>
         </div>`}
       ${done ? `<div class="feedback ${revealed ? 'bad' : 'good'}">${revealed ? 'Đáp án: ' + esc(q.ans) : 'Chính xác! 🎉'}</div>
-        <div class="card small">${q.explain}</div><button class="btn primary block" id="next">Tiếp tục →</button>` : ''}`;
+        <div class="card small" data-tt>${q.explain}</div><button class="btn primary block" id="next">Tiếp tục →</button>` : ''}`;
     bindSay(view);
     if (done) { $('#next').onclick = next; return; }
     const inp = $('#wfIn');
@@ -1091,6 +1092,166 @@ function wordformQuiz(mode) {
   };
   render();
 }
+
+/* ---------- Chạm vào từ để tra nghĩa ---------- */
+// Vùng có lang="en" tra mọi từ (kể cả dịch online); vùng data-tt (lẫn tiếng Việt) chỉ tra từ có trong từ điển
+const POS_LABEL = {
+  n: 'Danh từ', v: 'Động từ', adj: 'Tính từ', adv: 'Trạng từ', prep: 'Giới từ', conj: 'Liên từ', pron: 'Đại từ',
+  det: 'Từ hạn định', modal: 'Động từ khuyết thiếu', aux: 'Trợ động từ', num: 'Số từ', int: 'Thán từ', phr: 'Cụm từ',
+};
+const DICT = new Map(DICT_TEXT.trim().split('\n').map(l => { const [w, pos, vi] = l.split('|'); return [w, { pos, vi }]; }));
+const VOCAB_MAP = new Map(ALL_WORDS.map(w => [w.en.toLowerCase(), w]));
+const FAMILY_OF = new Map();
+WORD_FAMILIES.forEach(f => POS.forEach(p => { if (f[p]) FAMILY_OF.set(f[p], { f, pos: p }); }));
+
+function entryOf(w) {
+  const v = VOCAB_MAP.get(w), fam = FAMILY_OF.get(w)?.f, d = DICT.get(w);
+  if (v) return { vi: v.vi, ipa: v.ipa, pos: v.pos, vocab: v, fam };
+  if (fam) return { vi: fam.vi, pos: FAMILY_OF.get(w).pos, fam, famOnly: true };
+  if (d) return { vi: d.vi, pos: d.pos };
+  return null;
+}
+function baseCandidates(w) {
+  const c = [];
+  if (IRREGULAR[w]) c.push(IRREGULAR[w]);
+  if (w.endsWith("'s")) c.push(w.slice(0, -2));
+  const add = (suf, reps) => {
+    if (!w.endsWith(suf) || w.length <= suf.length + 1) return;
+    const s = w.slice(0, -suf.length);
+    reps.forEach(r => c.push(s + r));
+    if (/(.)\1$/.test(s)) c.push(s.slice(0, -1)); // stopped → stop, running → run
+  };
+  add('ies', ['y']); add('es', ['']); add('s', ['']);
+  add('ied', ['y']); add('ed', ['', 'e']); add('ing', ['', 'e']);
+  add('iest', ['y']); add('ier', ['y']); add('est', ['', 'e']); add('er', ['', 'e']);
+  add('ily', ['y']); add('ly', ['', 'le']);
+  return c;
+}
+function lookupWord(raw) {
+  const w = raw.toLowerCase().replace(/[’‘]/g, "'");
+  const e = entryOf(w);
+  if (e) return e;
+  for (const b of baseCandidates(w)) { const eb = entryOf(b); if (eb) return { ...eb, base: b }; }
+  return null;
+}
+
+async function translateOnline(text) {
+  const cache = store.get('tcache', {});
+  if (cache[text]) return cache[text];
+  if (!navigator.onLine) return null;
+  try {
+    const r = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=en|vi`);
+    const t = (await r.json())?.responseData?.translatedText;
+    if (t && t.toLowerCase() !== text.toLowerCase()) { cache[text] = t; store.set('tcache', cache); return t; }
+  } catch { /* mất mạng hoặc dịch vụ lỗi */ }
+  return null;
+}
+
+const lookupEl = $('#lookup');
+let lookupText = '';
+function closeLookup() {
+  lookupEl.classList.remove('open');
+  lookupText = '';
+  try { CSS.highlights?.delete('lookup'); } catch { /* trình duyệt cũ */ }
+}
+function highlightRange(range) {
+  try { if (window.Highlight && CSS.highlights) CSS.highlights.set('lookup', new Highlight(range)); } catch { /* bỏ qua */ }
+}
+
+async function showLookup(text, online = true) {
+  text = text.trim();
+  lookupText = text;
+  const key = text.toLowerCase();
+  const res = /\s/.test(key) ? entryOf(key) : lookupWord(key);
+  speak(text);
+  renderLookup(text, res, res || !online ? null : 'loading');
+  if (!res && online) {
+    const t = await translateOnline(text);
+    if (lookupText === text) renderLookup(text, t ? { vi: t, auto: true } : null, null);
+  }
+}
+
+function renderLookup(text, res, state) {
+  const tags = res?.pos ? res.pos.split('/').map(p => `<span class="tag tag-${POS.includes(p) ? p : 'x'}">${POS_LABEL[p] || p}</span>`).join(' ') : '';
+  const srs = store.get('srs', {});
+  const v = res?.vocab;
+  let body;
+  if (state === 'loading') body = '<div class="muted">Đang dịch…</div>';
+  else if (!res) body = `<div class="muted">Chưa có trong từ điển${navigator.onLine ? '' : '. Kết nối mạng để dịch tự động'}.</div>`;
+  else body = `
+    ${tags ? `<div class="row" style="margin:6px 0">${tags}</div>` : ''}
+    <div class="lk-vi">${esc(res.vi)}</div>
+    ${res.famOnly ? '<div class="muted small">Nghĩa chung của họ từ, xem loại từ ở bảng dưới</div>' : ''}
+    ${res.base ? `<div class="muted small">Từ gốc: <b>${esc(res.base)}</b></div>` : ''}
+    ${res.auto ? '<div class="muted small">🌐 Dịch tự động, có thể chưa sát nghĩa</div>' : ''}
+    ${v && v.ex ? `<div class="small" style="margin-top:8px" lang="en">“${esc(v.ex)}”</div>` : ''}
+    ${res.fam ? `<div class="muted small" style="margin-top:10px">Họ từ:</div>${familyTable(res.fam)}` : ''}
+    ${v ? (srs[v.en] ? '<div class="muted small" style="margin-top:10px">✓ Đã có trong ôn tập</div>'
+      : '<button class="btn small" id="lkAdd" style="margin-top:10px">➕ Thêm vào ôn tập</button>') : ''}`;
+  lookupEl.innerHTML = `
+    <div class="spread">
+      <div><span class="lk-word">${esc(res?.base && v ? v.en : text)}</span>
+        ${res?.ipa ? `<span class="muted">${esc(res.ipa)}</span>` : ''}</div>
+      <div class="row" style="flex-wrap:nowrap">
+        <button class="icon-btn" id="lkSay" aria-label="Nghe">🔊</button>
+        <button class="icon-btn" id="lkClose" aria-label="Đóng">✕</button>
+      </div>
+    </div>
+    ${res?.base && v ? `<div class="muted small">Bạn chạm vào: <b>${esc(text)}</b></div>` : ''}
+    ${body}`;
+  lookupEl.classList.add('open');
+  $('#lkSay').onclick = () => speak(text);
+  $('#lkClose').onclick = closeLookup;
+  const add = $('#lkAdd');
+  if (add) add.onclick = () => {
+    const all = store.get('srs', {});
+    all[v.en] = { reps: 0, interval: 0, ease: 2.5, lapses: 0, due: Date.now() };
+    store.set('srs', all);
+    toast(`Đã thêm "${v.en}" vào ôn tập`);
+    add.outerHTML = '<div class="muted small" style="margin-top:10px">✓ Đã có trong ôn tập</div>';
+  };
+}
+
+function wordAtPoint(x, y) {
+  let node, off;
+  if (document.caretPositionFromPoint) {
+    const p = document.caretPositionFromPoint(x, y);
+    if (!p) return null;
+    node = p.offsetNode; off = p.offset;
+  } else if (document.caretRangeFromPoint) {
+    const r = document.caretRangeFromPoint(x, y);
+    if (!r) return null;
+    node = r.startContainer; off = r.startOffset;
+  }
+  if (!node || node.nodeType !== 3) return null;
+  const t = node.textContent;
+  const isL = ch => /[\p{L}'’-]/u.test(ch);
+  let s = off, e = off;
+  while (s > 0 && isL(t[s - 1])) s--;
+  while (e < t.length && isL(t[e])) e++;
+  while (s < e && /['’-]/.test(t[s])) s++;
+  while (e > s && /['’-]/.test(t[e - 1])) e--;
+  const word = t.slice(s, e);
+  if (!/^[A-Za-z][A-Za-z'’-]*$/.test(word)) return null; // bỏ qua từ tiếng Việt có dấu
+  const range = document.createRange();
+  range.setStart(node, s); range.setEnd(node, e);
+  const rc = range.getBoundingClientRect();
+  if (x < rc.left - 4 || x > rc.right + 4 || y < rc.top - 4 || y > rc.bottom + 4) return null;
+  return { word, range };
+}
+
+document.addEventListener('click', e => {
+  const trigger = e.target.closest('[data-lookup]');
+  if (trigger) { showLookup(trigger.dataset.lookup); return; }
+  if (e.target.closest('#lookup')) return;
+  if (e.target.closest('button, a, input, select, textarea, label')) { closeLookup(); return; }
+  const zone = e.target.closest('[lang="en"], [data-tt]');
+  const hit = zone && wordAtPoint(e.clientX, e.clientY);
+  const mixed = zone && !zone.closest('[lang="en"]');
+  if (!hit || (mixed && !lookupWord(hit.word))) { closeLookup(); return; }
+  highlightRange(hit.range);
+  showLookup(hit.word, !mixed);
+});
 
 /* ---------- Cài đặt ---------- */
 function settingsView() {
